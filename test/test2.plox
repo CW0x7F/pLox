@@ -1,0 +1,15 @@
+//lets test if it works in file
+
+func plus(a,b){
+    return a+b;
+}
+
+//another //test 
+//
+
+func main(){
+    var a=1;
+    var b=2;
+    a = b+1;
+
+}
