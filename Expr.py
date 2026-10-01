@@ -35,6 +35,15 @@ class Assign(Expr):
       self.identifier = identifier
       self.value = value
 
+class LogicOR(Expr):
+   def __init__(self, left, right):
+      self.left = left
+      self.right = right
+
+class LogicAND(Expr):
+   def __init__(self, left, right):
+      self.left = left
+      self.right = right 
 
 
 
@@ -57,5 +66,17 @@ class VarDecl(Expr):
    def __init__(self, name, initializer):
       self.name = name
       self.initializer = initializer
+
+class IfStmt(Stmt):
+   def __init__(self, test, then, elseBlock):
+      self.test = test
+      self.then = then
+      self.elseBlock = elseBlock
+
+class whileStmt(Stmt):
+   def __init__(self, test, body):
+      self.test = test
+      self.body = body
+
 
 

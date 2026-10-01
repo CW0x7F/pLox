@@ -11,15 +11,24 @@ def setError(pos, line, msg):
     errorMsg.append(msg)
     hadError = True
     errorline.append(line)
-    
+
+def setPlainError(msg):
+    global hadError
+    position.append(None)
+    errorMsg.append(msg)
+    hadError = True
+    errorline.append(None)
 
 def showError():
 
     i=0
     while i< len(position):
-        s = f"Line [{errorline[i]}]:  "
-        targetLine,inLineOffset = _findCodeStr(i)
-        print(_red(f"{errorMsg[i]}\n{s}{targetLine}\n"+" "*(inLineOffset+len(s)-1)+"^"))
+        if position[i] == None:
+            print(_red(errorMsg[i]))
+        else:
+            s = f"Line [{errorline[i]}]:  "
+            targetLine,inLineOffset = _findCodeStr(i)
+            print(_red(f"{errorMsg[i]}\n{s}{targetLine}\n"+" "*(inLineOffset+len(s)-1)+"^"))
         i+=1
 
     _clearBuf()

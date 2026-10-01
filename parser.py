@@ -67,13 +67,74 @@ class Parser:
 
 
     def _statement(self):
+        if self._match(TokenType.IF):
+            return self._ifStmt()
         if self._match(TokenType.PRINT):
             return printStmt(self._printStmt())
+        if self._match(TokenType.WHILE):
+            return self._whileStmt()
+        if self._match(TokenType.FOR):
+            return self._forStmt()
         if self._match(TokenType.LEFT_BRACE):
             return self._blockStmt()
-                
+        
+        
         return exprStmt(self._exprStmt())
 
+    def _whileStmt(self):
+        self._consumeAppointed(TokenType.LEFT_PAREN,"Expect '('")
+        test = self._expression()
+        self._consumeAppointed(TokenType.RIGHT_PAREN,"Expect ')'")
+        body = self._statement()
+        return whileStmt(test,body)
+
+
+    def _forStmt(self):
+        self._consumeAppointed(TokenType.LEFT_PAREN,"Expect '('")
+        
+        initializer = None
+        if self._match(TokenType.VAR):
+            initializer = self._varDecl()
+        elif not self._match(TokenType.SEMICOLON):
+            initializer = self._exprStmt()
+        
+        test = None
+        if not self._match(TokenType.SEMICOLON):
+            test = self._exprStmt()
+        
+        tail = None
+        if self.tokens[self.cur].type != TokenType.RIGHT_PAREN:
+            tail = exprStmt(self._expression())
+        self._consumeAppointed(TokenType.RIGHT_PAREN,"Expect ')'")
+        body = self._statement()
+
+        #instead of creating a new For Expr we use existing while expr, which makes pLox for loop a syntax suger. 
+        innerStmts = []
+        if initializer:
+            innerStmts.append(initializer)
+        innerInnerStmts = []
+        
+        innerInnerStmts.append(body)
+        if tail:
+            innerInnerStmts.append(tail)
+        if not test:
+            test = Literal(True)
+        temp = whileStmt(test, BlockStmt(innerInnerStmts))
+        innerStmts.append(temp)
+        return BlockStmt(innerStmts)
+        
+        
+
+    def _ifStmt(self):
+        self._consumeAppointed(TokenType.LEFT_PAREN,"Expect '('")
+        test = self._expression()
+        self._consumeAppointed(TokenType.RIGHT_PAREN,"Expect ')'")
+        then = self._statement()
+        elseBlock = None
+        if self._match(TokenType.ELSE):
+            elseBlock = self._statement()
+        return IfStmt(test,then,elseBlock)
+        
 
     def _blockStmt(self):
         innerStmts = []
@@ -100,7 +161,7 @@ class Parser:
 
     def _assignment(self):
         cacheToken = self.tokens[self.cur]
-        expr = self._equality()
+        expr = self._logic_or()
         if self._match(TokenType.EQUAL):
             #assignment branch
             if not isinstance(expr, Var):
@@ -108,7 +169,20 @@ class Parser:
             rvalue = self._assignment()
             return Assign(expr, rvalue)
         return expr
-            
+
+    def _logic_or(self):
+        left = self._logic_and()
+        while self._match(TokenType.OR):
+            right = self._logic_and()
+            left = LogicOR(left,right)
+        return left
+        
+    def _logic_and(self):
+        left = self._equality()
+        while self._match(TokenType.AND):
+            right = self._equality()
+            left = LogicAND(left,right)
+        return left
    
     def _equality(self) ->Expr:
         return self._binary(
@@ -198,19 +272,27 @@ class Parser:
         token = self.tokens[self.cur]
         self.cur+=1
         return token
+
+    def _consumeAppointed(self, type, Msg):
+        ctoken = self.tokens[self.cur]
+        if not self._isAtLineEnd() and ctoken.type == type:
+            self.cur+=1
+        else:      
+            raise parseError(Msg,ctoken.pos,ctoken.line)
     
 
     def _isAtLineEnd(self):
         return self.tokens[self.cur].type == TokenType.SEMICOLON or self._isAtEnd()
 
     def _isAtEnd(self):
-        return self.tokens[self.cur].type == TokenType.EOF
+        return self.cur >= len(self.tokens)-1
 
     def _peek(self):
         if self.cur >= len(self.tokens):
             #there is always an eof, should never go here
             return TokenType.EOF
         return self.tokens[self.cur+1]
+
 
     def showAllTrees(self):
         for each in self.trees:

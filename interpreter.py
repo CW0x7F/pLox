@@ -2,7 +2,7 @@ from Expr import *
 from Token import _Token
 from TokenType import TokenType
 from Environment import *
-from error import setError
+from error import setError,setPlainError
 import operator
 
 class Interpreter:
@@ -19,13 +19,17 @@ class Interpreter:
         '''
         try: 
             for eachtree in self.trees:
-                self.results.append(self._checkDecl(eachtree))
+                res = self._checkDecl(eachtree)
+                if not isinstance(res,NoReturnValue):
+                    self.results.append(res)
             return self.results
         except VarNotExists as e:
             setError(e.errorToken.pos,e.errorToken.line,"This variable doesn't exist!")
 
         except LoxRuntimeError as e:
             setError(e.errToken.pos, e.errToken.line, e.msg)
+        except InternalError as e:
+            setPlainError(e.msg)
 
     def _checkDecl(self, node):
         '''
@@ -34,8 +38,11 @@ class Interpreter:
         match node: 
             case VarDecl():
                 self._checkVarDecl(node)
+                return NoReturnValue()
             case Stmt():
                 return self._checkStmt(node)
+            case _:
+                raise InternalError(f"Not a statement: {type(node).__name__}")
 
 
     def _checkVarDecl(self, node):
@@ -47,7 +54,7 @@ class Interpreter:
 
     def _checkStmt(self, node):
         '''
-        statement -> exprStmt | printStmt | blockStmt
+        statement -> exprStmt | printStmt | blockStmt | ifStmt | whileStmt
        
         '''
         match node:
@@ -56,10 +63,34 @@ class Interpreter:
 
             case printStmt(expr=expr):
                 print(self._evaluate(expr))
-                return None
+                return NoReturnValue()
 
             case BlockStmt():
-                self._checkBlock(node)                
+                self._checkBlock(node)
+                return NoReturnValue()
+
+            case IfStmt():
+                self._checkIf(node)
+                return NoReturnValue()
+
+            case whileStmt():
+                self._checkWhile(node)
+                return NoReturnValue()
+            case _:
+                raise InternalError(f"Unknown statement: {type(node).__name__}")
+           
+                
+
+    
+    def _checkWhile(self, node:whileStmt):
+        while self._evaluate(node.test):
+            self._checkStmt(node.body)
+
+    def _checkIf(self, node:IfStmt):
+        if self._evaluate(node.test):
+            self._checkStmt(node.then)
+        elif node.elseBlock:
+            self._checkStmt(node.elseBlock)
 
 
     def _checkBlock(self, node:BlockStmt):
@@ -126,8 +157,21 @@ class Interpreter:
                     raise VarNotExists(identifier.token)
                 return res 
 
+            case LogicOR(left=left, right=right):
+                return self._evaluate(left) or self._evaluate(right)
+
+            case LogicAND(left=left, right=right):
+                return self._evaluate(left) and self._evaluate(right)
+                
     
 class LoxRuntimeError(Exception):
     def __init__(self, errToken, msg):
         self.errToken = errToken
+        self.msg = msg
+
+class NoReturnValue:
+    pass
+
+class InternalError(Exception):
+    def __init__(self, msg):
         self.msg = msg

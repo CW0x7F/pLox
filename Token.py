@@ -136,7 +136,8 @@ class Scanner:
         self.tokenList.append(token)
     
     def _peek(self):
-        
+        if self._isAtEnd():
+            return None
         return self.codeline[self.cur]
 
     def _consume(self):
